@@ -15,6 +15,17 @@ import (
 // https://www.postgresql.org/docs/current/errcodes-appendix.html
 const pgCodeUniqueViolation = "23505"
 
+// userRow は users テーブルから取得した 1 行を表す内部表現。
+// SQL の Scan 先として使い、toDomainModel で domain モデルに変換する。
+// sqlc を使っていないためこの型を自前で用意している。
+type userRow struct {
+	UserID    int64
+	UserName  string
+	UserEmail string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 // UserRepository は domainuser.UserRepository の PostgreSQL 実装。
 type UserRepository struct {
 	pool *pgxpool.Pool
@@ -33,19 +44,13 @@ func (r *UserRepository) Create(ctx context.Context, params domainuser.CreatePar
 		VALUES ($1, $2)
 		RETURNING user_id, user_name, user_email, created_at, updated_at
 	`
-	var (
-		userID    int64
-		userName  string
-		userEmail string
-		createdAt time.Time
-		updatedAt time.Time
-	)
+	var row userRow
 	err := r.pool.QueryRow(ctx, query, params.UserName, params.UserEmail).Scan(
-		&userID,
-		&userName,
-		&userEmail,
-		&createdAt,
-		&updatedAt,
+		&row.UserID,
+		&row.UserName,
+		&row.UserEmail,
+		&row.CreatedAt,
+		&row.UpdatedAt,
 	)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -54,11 +59,17 @@ func (r *UserRepository) Create(ctx context.Context, params domainuser.CreatePar
 		}
 		return nil, err
 	}
+	return r.toDomainModel(row), nil
+}
+
+// toDomainModel は users テーブル行を domainuser.User に変換する。
+// DB の内部表現(userRow)と domain 層のエンティティの間の境界をこの関数に閉じ込める。
+func (r *UserRepository) toDomainModel(row userRow) *domainuser.User {
 	return domainuser.NewUser(domainuser.NewUserParams{
-		UserID:    userID,
-		UserName:  userName,
-		UserEmail: userEmail,
-		CreatedAt: createdAt,
-		UpdatedAt: updatedAt,
-	}), nil
+		UserID:    row.UserID,
+		UserName:  row.UserName,
+		UserEmail: row.UserEmail,
+		CreatedAt: row.CreatedAt,
+		UpdatedAt: row.UpdatedAt,
+	})
 }

@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 
 	"github.com/maya-konnichiha/todo-list-backend/internal/handler"
+	"github.com/maya-konnichiha/todo-list-backend/internal/infrastructure/postgres"
 	"github.com/maya-konnichiha/todo-list-backend/internal/registry"
 )
 
@@ -25,17 +25,12 @@ func main() {
 	}
 
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dbURL)
+	pool, err := postgres.NewPool(ctx, dbURL)
 	if err != nil {
-		slog.Error("failed to create connection pool", slog.Any("error", err))
+		slog.Error("failed to initialize database", slog.Any("error", err))
 		os.Exit(1)
 	}
 	defer pool.Close()
-
-	if err := pool.Ping(ctx); err != nil {
-		slog.Error("failed to ping database", slog.Any("error", err))
-		os.Exit(1)
-	}
 	slog.Info("connected to PostgreSQL")
 
 	// DI 配線は registry に集約
