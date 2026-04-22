@@ -17,3 +17,15 @@ func newCreateUserResponse(u *userdomain.User) CreateUserResponse {
 		UserEmail: u.UserEmail,
 	}
 }
+
+type GetUserResponse struct {
+	UserName  string `json:"userName"`
+	UserEmail string `json:"userEmail"`
+}
+
+func newGetUserResponse(u *userdomain.User) GetUserResponse {
+	return GetUserResponse{
+		UserName:  u.UserName,
+		UserEmail: u.UserEmail,
+	}
+}

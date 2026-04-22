@@ -45,9 +45,11 @@ func main() {
 
 	userRepo := postgres.NewUserRepository(pool)
 	createUserUC := userusecase.NewCreateUser(userRepo)
+	getUserUC := userusecase.NewGetUser(userRepo)
 
 	deps := handler.Deps{
 		CreateUser: createUserUC,
+		GetUser:    getUserUC,
 	}
 
 	mux := http.NewServeMux()

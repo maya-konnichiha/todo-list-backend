@@ -10,6 +10,7 @@ import (
 
 type Deps struct {
 	CreateUser *userusecase.CreateUser
+	GetUser    *userusecase.GetUser
 }
 
 func RegisterRoutes(mux *http.ServeMux, d Deps) {
@@ -20,5 +21,5 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	})
 
 	const v1 = "/api/v1"
-	userhandler.RegisterRoutes(mux, v1, d.CreateUser)
+	userhandler.RegisterRoutes(mux, v1, d.CreateUser, d.GetUser)
 }
