@@ -41,7 +41,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := h.uc.Create(r.Context(), ucuser.CreateInput{
+	created, err := h.createUserUC.Execute(r.Context(), ucuser.CreateInput{
 		UserName:  req.UserName,
 		UserEmail: req.UserEmail,
 	})

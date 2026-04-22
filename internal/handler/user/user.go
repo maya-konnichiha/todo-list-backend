@@ -5,11 +5,12 @@ import (
 )
 
 // Handler はユーザー関連の HTTP ハンドラを束ねる。
+// アクションごとのユースケースをフィールドとして持つ。
 type Handler struct {
-	uc *ucuser.Usecase
+	createUserUC *ucuser.CreateUserUsecase
 }
 
 // New は Handler を生成する。
-func New(uc *ucuser.Usecase) *Handler {
-	return &Handler{uc: uc}
+func New(createUserUC *ucuser.CreateUserUsecase) *Handler {
+	return &Handler{createUserUC: createUserUC}
 }

@@ -19,14 +19,14 @@ type NewDepsParams struct {
 // NewDeps は全ての依存関係を一箇所で管理し、handler.Deps を生成する。
 func NewDeps(params NewDepsParams) handler.Deps {
 	return handler.Deps{
-		Logger: params.Logger,
-		DBPool: params.DB,
-		UserUC: NewUserUsecase(params.DB),
+		Logger:       params.Logger,
+		DBPool:       params.DB,
+		CreateUserUC: NewCreateUserUsecase(params.DB),
 	}
 }
 
-// NewUserUsecase は user ユースケースを生成する。
-func NewUserUsecase(pool *pgxpool.Pool) *userUsecase.Usecase {
+// NewCreateUserUsecase はユーザー作成ユースケースを生成する。
+func NewCreateUserUsecase(pool *pgxpool.Pool) *userUsecase.CreateUserUsecase {
 	repo := userRepo.New(pool)
-	return userUsecase.New(repo)
+	return userUsecase.NewCreateUserUsecase(repo)
 }

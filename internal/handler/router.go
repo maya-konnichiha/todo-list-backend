@@ -13,9 +13,9 @@ import (
 // Deps はアプリケーション全体の依存関係を集約した構造体。
 // registry.NewDeps で生成し、NewRouter に渡す。
 type Deps struct {
-	Logger *slog.Logger
-	DBPool *pgxpool.Pool
-	UserUC *ucuser.Usecase
+	Logger       *slog.Logger
+	DBPool       *pgxpool.Pool
+	CreateUserUC *ucuser.CreateUserUsecase
 }
 
 // NewRouter はアプリケーションのルーティングを構築する。
@@ -24,7 +24,7 @@ func NewRouter(d Deps) http.Handler {
 	mux := http.NewServeMux()
 
 	handleruser.RegisterUserRoutes(mux, handleruser.Deps{
-		UC: d.UserUC,
+		CreateUserUC: d.CreateUserUC,
 	})
 
 	return mux
