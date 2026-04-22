@@ -14,19 +14,11 @@ type User struct {
 
 // NewUserParams は User 生成時のパラメータ。
 //
-// このパラメータ構造体は 2 つの用途を兼ねている:
+// 主に repository 層で DB から取得した行を User に復元する際に使用する。
+// （ドメインテストで User を明示的に組み立てたい場合にも利用する）
 //
-//  1. 新規作成前の一時オブジェクトを作る場合（usecase 層で使用）
-//     → UserName / UserEmail のみ指定する。
-//     UserID / CreatedAt / UpdatedAt は INSERT 時に DB 側で採番・設定されるため、
-//     ゼロ値のままで良い。
-//
-//  2. DB から取得した行を User に復元する場合（repository 層で使用）
-//     → DB から返ってきた全フィールドを指定する。
-//
-// Go ではフィールドを省略すると自動でゼロ値になる（int64 は 0、time.Time は
-// time.Time{}）ため、用途 1 の呼び出しでも UserID/CreatedAt/UpdatedAt を
-// 明示的に書く必要はない。
+// usecase 層で「作成リクエスト」を表現したい場合は、このコンストラクタではなく
+// UserRepository.Create に CreateParams を渡す流れを使う。
 type NewUserParams struct {
 	UserID    int64
 	UserName  string

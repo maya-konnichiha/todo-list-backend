@@ -7,10 +7,10 @@ import (
 // Usecase はユーザー関連のビジネスロジックを束ねる。
 // repository は interface 型で受け取り、実装に依存しない。
 type Usecase struct {
-	repo domainuser.Repository
+	repo domainuser.UserRepository
 }
 
 // New は Usecase を生成する。
-func New(repo domainuser.Repository) *Usecase {
+func New(repo domainuser.UserRepository) *Usecase {
 	return &Usecase{repo: repo}
 }

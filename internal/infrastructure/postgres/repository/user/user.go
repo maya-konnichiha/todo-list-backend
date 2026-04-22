@@ -15,7 +15,7 @@ import (
 // https://www.postgresql.org/docs/current/errcodes-appendix.html
 const pgCodeUniqueViolation = "23505"
 
-// Repository は domainuser.Repository の PostgreSQL 実装。
+// Repository は domainuser.UserRepository の PostgreSQL 実装。
 type Repository struct {
 	pool *pgxpool.Pool
 }
@@ -27,7 +27,7 @@ func New(pool *pgxpool.Pool) *Repository {
 
 // Create はユーザーを INSERT し、DB で採番された行を返す。
 // email の UNIQUE 衝突は domainuser.ErrEmailAlreadyRegistered に変換する。
-func (r *Repository) Create(ctx context.Context, u *domainuser.User) (*domainuser.User, error) {
+func (r *Repository) Create(ctx context.Context, params domainuser.CreateParams) (*domainuser.User, error) {
 	const query = `
 		INSERT INTO users (user_name, user_email)
 		VALUES ($1, $2)
@@ -40,7 +40,7 @@ func (r *Repository) Create(ctx context.Context, u *domainuser.User) (*domainuse
 		createdAt time.Time
 		updatedAt time.Time
 	)
-	err := r.pool.QueryRow(ctx, query, u.UserName, u.UserEmail).Scan(
+	err := r.pool.QueryRow(ctx, query, params.UserName, params.UserEmail).Scan(
 		&userID,
 		&userName,
 		&userEmail,
