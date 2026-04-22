@@ -4,24 +4,17 @@
 //  1. 環境変数の読み込み（.env）
 //  2. DB 接続プール（pgxpool）の作成と疎通確認
 //  3. 依存の組み立て（Repository → Usecase → handler.Deps）
-//  4. Gin エンジンの起動 + ルート登録
+//  4. http.ServeMux にルート登録
 //  5. HTTP サーバー起動
-//
-// なぜ main.go に配線を集中させるのか（DI の集約点）:
-//   - 依存（DB 接続・ロガー・usecase 等）を作る責務を**一箇所**に閉じ込める
-//   - 下位の層（handler / usecase / domain）は「外から渡される」前提で書ける
-//   - テストは main.go を経由せず、各層を個別に偽物依存で組み立てて動かせる
-//   - プロジェクトが大きくなったら registry/ パッケージに切り出す余地を残しつつ、
-//     Todo 規模では 1 ファイルで十分
 package main
 
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 
@@ -34,7 +27,6 @@ func main() {
 	// --------------------------------------------------------------------
 	// 1. .env の読み込み
 	//
-	// godotenv.Load() は「.env ファイルを読んで環境変数にセット」する。
 	// 本番（Cloud Run 等）では .env を置かずに環境変数を直接セットするので、
 	// ファイルが無くても続行する（Fatal にはしない）。
 	// --------------------------------------------------------------------
@@ -45,8 +37,7 @@ func main() {
 	// --------------------------------------------------------------------
 	// 2. 設定値の取得
 	//
-	// os.Getenv は未設定でも空文字を返すだけでエラーにはならない。
-	// 必須の値は手動でゼロチェックして、無ければ早期失敗させる（fail-fast）。
+	// os.Getenv は未設定でも空文字を返すだけ。必須のものはここでゼロチェック。
 	// --------------------------------------------------------------------
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
@@ -54,45 +45,31 @@ func main() {
 	}
 	port := os.Getenv("APP_PORT")
 	if port == "" {
-		port = "8080" // 環境変数が無ければデフォルト値
+		port = "8080"
 	}
 
 	// --------------------------------------------------------------------
 	// 3. DB 接続プールの作成
 	//
-	// pgxpool とは:
-	//   - 「DB との TCP 接続を複数保持して、必要に応じて貸し出す」プール。
-	//   - HTTP サーバーは並行（複数ゴルーチン）でリクエストを捌く。
-	//     各リクエストが DB 接続を必要とする度に新規接続を張ると、
-	//     接続のオープン/クローズが重く、DB 側の接続上限にも当たる。
-	//   - プールは接続を**使い回す**ので、両方の問題を解決する。
+	// pgxpool:
+	//   - DB との TCP 接続をプールして使い回す仕組み
+	//   - 並行リクエストで接続を張り直さずに済む
 	//
-	// タイムアウト付き context を使う理由:
-	//   - DB サーバーが落ちている等で応答が無い時、無限に待たないため。
-	//   - 5 秒は実測に基づく値ではなく、学習用の妥当値。
-	//     本番ではもっと短く（1〜2 秒）することもある。
+	// タイムアウト付き ctx:
+	//   - DB が無応答でも 5 秒で諦める（fail-fast）
 	//
-	// defer pool.Close() の意義:
-	//   - main 終了時にプールを閉じる = 保持している接続を全部切る。
-	//   - 閉じないと、プロセスは死んでも DB 側のセッションがしばらく残り、
-	//     接続上限を圧迫する。
-	//   - Go の defer はスタック LIFO で実行されるので、最初に書いておけば
-	//     後でどこで return しても確実に呼ばれる。
+	// defer pool.Close():
+	//   - main 終了時にプールを閉じる = 保持している DB 接続を全部切る
 	// --------------------------------------------------------------------
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel() // WithTimeout で確保したリソースを解放する（ctx を使い終わったら呼ぶ慣習）
+	defer cancel()
 
 	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
-		// log.Fatalf は「メッセージを出してから os.Exit(1)」する。
-		// defer は呼ばれないので、ここまで来る前に確保した defer（今はまだ無い）は失われる点に注意。
 		log.Fatalf("failed to create connection pool: %v", err)
 	}
 	defer pool.Close()
 
-	// Ping で実際に 1 回接続を確立して、DB に届くかを確認する。
-	// プール作成時点では接続は遅延確立されるので、Ping しないと
-	// 起動は成功したように見えて最初のリクエストで初めて失敗することになる。
 	if err := pool.Ping(ctx); err != nil {
 		log.Fatalf("failed to ping database: %v", err)
 	}
@@ -101,48 +78,49 @@ func main() {
 	// --------------------------------------------------------------------
 	// 4. 依存の組み立て（DI 配線）
 	//
-	// 依存方向の流れ:
-	//   pool → Repository → Usecase → handler.Deps → RegisterRoutes
-	//
-	// 上の層が下の層を「知る」のではなく、**上が下を組み立てて渡す**。
-	// これにより handler は「Repository の実装が Postgres であること」を知らずに済む。
+	// pool → Repository → Usecase → handler.Deps の順に組み上げる。
+	// 各層は interface で依存を受け取るので、ここで具象を詰める。
 	// --------------------------------------------------------------------
 	userRepo := postgres.NewUserRepository(pool)
 	createUserUC := userusecase.NewCreateUser(userRepo)
 
 	deps := handler.Deps{
 		CreateUser: createUserUC,
-		// 将来: GetUser, CreateCategory, CreateTask, ... をここに並べる
 	}
 
 	// --------------------------------------------------------------------
-	// 5. Gin エンジン起動
+	// 5. http.ServeMux にルート登録
 	//
-	// gin.Default() = gin.New() + Logger + Recovery の 2 つのミドルウェア付き。
-	//   - Logger  : リクエストログを標準出力に出す
-	//   - Recovery: ハンドラ内 panic を拾って 500 を返す（プロセス死亡を防ぐ）
+	// Gin 時代は gin.Default() + handler.RegisterRoutes で 2 行だった。
+	// 標準ではミドルウェア（ログ / panic 回復）が付かない分、自分で足す必要がある。
+	// 今回は学習段階なので省略。必要になったら以下で足す:
 	//
-	// 本番ではロガーを構造化（JSON 出力）したくなるので gin.New() + 自作ミドルウェア
-	// が一般的。学習段階では gin.Default() でコンパクトに。
+	//   var handler http.Handler = mux
+	//   handler = loggingMiddleware(handler)
+	//   handler = recoveryMiddleware(handler)
 	// --------------------------------------------------------------------
-	r := gin.Default()
-	handler.RegisterRoutes(r, deps)
+	mux := http.NewServeMux()
+	handler.RegisterRoutes(mux, deps)
 
 	// --------------------------------------------------------------------
 	// 6. HTTP サーバー起動
 	//
-	// r.Run は内部で http.ListenAndServe を呼ぶ。
-	// Ctrl+C で止まるとプロセスが即死 → defer pool.Close() は呼ばれる
-	// （Go の defer は panic と Fatal では呼ばれないが、シグナルで main が
-	//  正常終了する場合は呼ばれる。ただし pool.Close() は「きれいに切りたい」
-	//  時のためのもので、緊急停止では省かれても致命的ではない）。
+	// http.Server を自前で構築する理由:
+	//   - ReadHeaderTimeout を明示できる（slowloris 攻撃対策）
+	//     net/http の素の ListenAndServe はタイムアウト無しで、時間をかけてヘッダを
+	//     送るだけで接続を占有する攻撃が成り立つ
+	//   - 将来 graceful shutdown（server.Shutdown）を入れる時の下地になる
 	//
-	// より堅牢にするなら: signal.NotifyContext で SIGINT/SIGTERM を受け取り、
-	// http.Server.Shutdown で graceful shutdown する。
-	// material-hub/cmd/main.go を参照。
+	// Gin の r.Run() は内部で http.Server を組んでいる。今回はそれを自前で書いているだけ。
 	// --------------------------------------------------------------------
+	server := &http.Server{
+		Addr:              ":" + port,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
 	log.Printf("server starting on :%s", port)
-	if err := r.Run(":" + port); err != nil {
+	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }
