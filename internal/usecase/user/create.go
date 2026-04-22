@@ -15,9 +15,9 @@ type CreateInput struct {
 // Create はユーザーを作成して返す。
 // バリデーションは handler 層で済んでいる前提。
 func (uc *Usecase) Create(ctx context.Context, in CreateInput) (*domainuser.User, error) {
-	u := &domainuser.User{
+	u := domainuser.NewUser(domainuser.NewUserParams{
 		UserName:  in.UserName,
 		UserEmail: in.UserEmail,
-	}
+	})
 	return uc.repo.Create(ctx, u)
 }

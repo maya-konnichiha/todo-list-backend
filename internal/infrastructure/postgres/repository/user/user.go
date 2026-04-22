@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -32,13 +33,19 @@ func (r *Repository) Create(ctx context.Context, u *domainuser.User) (*domainuse
 		VALUES ($1, $2)
 		RETURNING user_id, user_name, user_email, created_at, updated_at
 	`
-	var created domainuser.User
+	var (
+		userID    int64
+		userName  string
+		userEmail string
+		createdAt time.Time
+		updatedAt time.Time
+	)
 	err := r.pool.QueryRow(ctx, query, u.UserName, u.UserEmail).Scan(
-		&created.UserID,
-		&created.UserName,
-		&created.UserEmail,
-		&created.CreatedAt,
-		&created.UpdatedAt,
+		&userID,
+		&userName,
+		&userEmail,
+		&createdAt,
+		&updatedAt,
 	)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -47,5 +54,11 @@ func (r *Repository) Create(ctx context.Context, u *domainuser.User) (*domainuse
 		}
 		return nil, err
 	}
-	return &created, nil
+	return domainuser.NewUser(domainuser.NewUserParams{
+		UserID:    userID,
+		UserName:  userName,
+		UserEmail: userEmail,
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+	}), nil
 }
