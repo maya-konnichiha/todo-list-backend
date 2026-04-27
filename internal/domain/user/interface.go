@@ -14,4 +14,5 @@ type CreateParams struct {
 // usecase はこの interface 経由で触る。
 type UserRepository interface {
 	Create(ctx context.Context, params CreateParams) (*User, error)
+	FindByID(ctx context.Context, userID int64) (*User, error)
 }

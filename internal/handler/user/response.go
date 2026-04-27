@@ -23,3 +23,17 @@ func ToCreateResponse(u *domainuser.User) CreateResponse {
 		CreatedAt: u.CreatedAt,
 	}
 }
+
+// GetResponse は GET /users/{userId} のレスポンス DTO。
+type GetResponse struct {
+	UserName  string `json:"userName"`
+	UserEmail string `json:"userEmail"`
+}
+
+// ToGetResponse はドメインモデルをレスポンス DTO に変換する。
+func ToGetResponse(u *domainuser.User) GetResponse {
+	return GetResponse{
+		UserName:  u.UserName,
+		UserEmail: u.UserEmail,
+	}
+}

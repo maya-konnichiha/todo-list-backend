@@ -22,6 +22,7 @@ func NewDeps(params NewDepsParams) handler.Deps {
 		Logger:       params.Logger,
 		DBPool:       params.DB,
 		CreateUserUC: NewCreateUserUsecase(params.DB),
+		GetUserUC:    NewGetUserUsecase(params.DB),
 	}
 }
 
@@ -29,4 +30,10 @@ func NewDeps(params NewDepsParams) handler.Deps {
 func NewCreateUserUsecase(pool *pgxpool.Pool) *userUsecase.CreateUserUsecase {
 	repo := repository.NewUserRepository(pool)
 	return userUsecase.NewCreateUserUsecase(repo)
+}
+
+// NewGetUserUsecase はユーザー取得ユースケースを生成する。
+func NewGetUserUsecase(pool *pgxpool.Pool) *userUsecase.GetUserUsecase {
+	repo := repository.NewUserRepository(pool)
+	return userUsecase.NewGetUserUsecase(repo)
 }

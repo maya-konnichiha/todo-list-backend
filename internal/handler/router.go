@@ -16,6 +16,7 @@ type Deps struct {
 	Logger       *slog.Logger
 	DBPool       *pgxpool.Pool
 	CreateUserUC *ucuser.CreateUserUsecase
+	GetUserUC    *ucuser.GetUserUsecase
 }
 
 // NewRouter はアプリケーションのルーティングを構築する。
@@ -25,6 +26,7 @@ func NewRouter(d Deps) http.Handler {
 
 	handleruser.RegisterUserRoutes(mux, handleruser.Deps{
 		CreateUserUC: d.CreateUserUC,
+		GetUserUC:    d.GetUserUC,
 	})
 
 	return mux

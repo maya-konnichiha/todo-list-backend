@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -56,6 +57,31 @@ func (r *UserRepository) Create(ctx context.Context, params domainuser.CreatePar
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgCodeUniqueViolation {
 			return nil, domainuser.ErrEmailAlreadyRegistered
+		}
+		return nil, err
+	}
+	return r.toDomainModel(row), nil
+}
+
+// FindByID は userID で users を SELECT し、行を返す。
+// soft delete 済み(deleted_at IS NOT NULL)は除外し、未存在と同様に domainuser.ErrNotFound を返す。
+func (r *UserRepository) FindByID(ctx context.Context, userID int64) (*domainuser.User, error) {
+	const query = `
+		SELECT user_id, user_name, user_email, created_at, updated_at
+		FROM users
+		WHERE user_id = $1 AND deleted_at IS NULL
+	`
+	var row userRow
+	err := r.pool.QueryRow(ctx, query, userID).Scan(
+		&row.UserID,
+		&row.UserName,
+		&row.UserEmail,
+		&row.CreatedAt,
+		&row.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domainuser.ErrNotFound
 		}
 		return nil, err
 	}
