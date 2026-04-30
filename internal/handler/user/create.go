@@ -27,7 +27,7 @@ func NewCreateHandler(uc *ucuser.CreateUserUsecase) *CreateHandler {
 func (h *CreateHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	var req CreateUserRequest
 	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
+	decoder.DisallowUnknownFields()// ここなに？
 	if err := decoder.Decode(&req); err != nil {
 		errhandler.BadRequest(w, "INVALID_REQUEST", "リクエストの形式が不正です")
 		return
@@ -55,5 +55,5 @@ func (h *CreateHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		slog.Error("failed to encode create user response", slog.Any("error", err))
-	}
+	}// 難しい
 }

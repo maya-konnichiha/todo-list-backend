@@ -12,6 +12,7 @@ type CreateParams struct {
 // UserRepository はユーザー永続化層の振る舞いを宣言する。
 // 実装は internal/infrastructure/postgres/repository/user にあり、
 // usecase はこの interface 経由で触る。
+// Repository のインターフェースを定義することでUsecaseがRepositoryに依存するのを防ぐ
 type UserRepository interface {
 	Create(ctx context.Context, params CreateParams) (*User, error)
 	FindByID(ctx context.Context, userID int64) (*User, error)
