@@ -26,8 +26,12 @@ type CreateInput struct {
 // Execute はユーザーを作成して返す。
 // バリデーションは handler 層で済んでいる前提。
 func (u *CreateUserUsecase) Execute(ctx context.Context, in CreateInput) (*domainuser.User, error) {
-	return u.repo.Create(ctx, domainuser.CreateParams{
+	user, err := u.repo.Create(ctx, domainuser.CreateParams{
 		UserName:  in.UserName,
 		UserEmail: in.UserEmail,
 	})
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
