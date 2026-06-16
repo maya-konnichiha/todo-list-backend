@@ -14,6 +14,11 @@ import (
 )
 
 func main() {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
+
 	if err := godotenv.Load(); err != nil {
 		slog.Info("no .env file found, using environment variables")
 	}
@@ -36,7 +41,7 @@ func main() {
 	// DI 配線は registry に集約
 	deps := registry.NewDeps(registry.NewDepsParams{
 		DB:     pool,
-		Logger: slog.Default(),
+		Logger: logger,
 	})
 
 	router := handler.NewRouter(deps)

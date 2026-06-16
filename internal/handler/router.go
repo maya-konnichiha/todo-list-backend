@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	handlercategory "github.com/maya-konnichiha/todo-list-backend/internal/handler/category"
+	"github.com/maya-konnichiha/todo-list-backend/internal/handler/middleware"
 	handlertask "github.com/maya-konnichiha/todo-list-backend/internal/handler/task"
 	handleruser "github.com/maya-konnichiha/todo-list-backend/internal/handler/user"
 	uccategory "github.com/maya-konnichiha/todo-list-backend/internal/usecase/category"
@@ -59,5 +60,5 @@ func NewRouter(d Deps) http.Handler {
 		DeleteTaskUC: d.DeleteTaskUC,
 	})
 
-	return mux
+	return middleware.Logging(d.Logger, mux)
 }
